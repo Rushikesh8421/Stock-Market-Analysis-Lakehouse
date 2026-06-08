@@ -7,50 +7,63 @@ spark = (
 )
 
 # Read the Bronze File
-import json
+import json, glob
 
-bronze_file = "data/bronze/stock_prices/AAPL_20260604T192718.json"
+bronze_files = glob.glob(
+    "data/bronze/stock_prices/*.json"
+)
 
-with open(bronze_file, "r") as f:
-    data = json.load(f)
+print(f"Found {len(bronze_files)} bronze files")
 
-# Extract the Symbol
-symbol = data["Meta Data"]["2. Symbol"]
+all_records = []
 
-print(symbol)
+for bronze_file in bronze_files:
 
-# Extract Daily Records
-daily_data = data["Time Series (Daily)"]
+    with open(bronze_file, "r") as f:
+        data = json.load(f)
 
-# Build Records
-records = []
+    symbol = data["Meta Data"]["2. Symbol"]
 
-for date, values in daily_data.items():
+    daily_data = data["Time Series (Daily)"]
 
-    record = {
-        "symbol": symbol,
-        "date": date,
-        "open": float(values["1. open"]),
-        "high": float(values["2. high"]),
-        "low": float(values["3. low"]),
-        "close": float(values["4. close"]),
-        "volume": int(values["5. volume"])
-    }
+    for date, values in daily_data.items():
 
-    records.append(record)
+        record = {
+            "symbol": symbol,
+            "date": date,
+            "open": float(values["1. open"]),
+            "high": float(values["2. high"]),
+            "low": float(values["3. low"]),
+            "close": float(values["4. close"]),
+            "volume": int(values["5. volume"])
+        }
 
-print(len(records))   
+        all_records.append(record)
+
+print(f'Total no of records: {len(all_records)}')   
 
 # Create Spark DataFrame
-df = spark.createDataFrame(records)
+df = spark.createDataFrame(all_records)
 df.show(5)
 
+from pyspark.sql.functions import year
+from pyspark.sql.functions import month
 from pyspark.sql.functions import to_date, current_timestamp
 
 # Convert date from string datatype to date datatype format
 df = df.withColumn(
     "date",
     to_date("date", "yyyy-MM-dd")
+)
+
+df = df.withColumn(
+    "year",
+    year("date")
+)
+
+df = df.withColumn(
+    "month",
+    month("date")
 )
 
 # Add Created Timestamp
@@ -68,16 +81,18 @@ df = df.select(
     "low",
     "close",
     "volume",
-    "created_ts"
+    "created_ts",
+    "year",
+    "month"
 )
 
 df.printSchema()
 
 df.write \
     .mode("overwrite") \
+    .partitionBy("year", "month") \
     .parquet("data/silver/stock_prices")
 
-print(df.rdd.getNumPartitions())
-
+print(df.count())
 # Stop Spark
 spark.stop()
