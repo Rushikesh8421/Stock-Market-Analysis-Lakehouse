@@ -44,7 +44,40 @@ print(len(records))
 # Create Spark DataFrame
 df = spark.createDataFrame(records)
 df.show(5)
+
+from pyspark.sql.functions import to_date, current_timestamp
+
+# Convert date from string datatype to date datatype format
+df = df.withColumn(
+    "date",
+    to_date("date", "yyyy-MM-dd")
+)
+
+# Add Created Timestamp
+df = df.withColumn(
+    "created_ts",
+    current_timestamp()
+)
+
+# Reorder Columns
+df = df.select(
+    "symbol",
+    "date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "created_ts"
+)
+
 df.printSchema()
+
+df.write \
+    .mode("overwrite") \
+    .parquet("data/silver/stock_prices")
+
+print(df.rdd.getNumPartitions())
 
 # Stop Spark
 spark.stop()
