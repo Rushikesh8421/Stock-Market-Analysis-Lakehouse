@@ -88,11 +88,53 @@ df = df.select(
 
 df.printSchema()
 
+
 df.write \
     .mode("overwrite") \
     .partitionBy("year", "month") \
     .parquet("data/silver/stock_prices")
 
-print(df.count())
+
+before_dedup = df.count()
+
+# Deduplication
+df = df.dropDuplicates(
+    ["symbol", "date"]
+)
+
+after_dedup = df.count()
+
+print(f'Total no of records before deduplication: {before_dedup}')
+print(f'Total no of records after deduplication: {after_dedup}')
+print(f'Duplicates count: {before_dedup - after_dedup}')
+
+# Data Quality
+from pyspark.sql.functions import col
+
+valid_df = df.filter(
+    (col("symbol").isNotNull()) &
+    (col("date").isNotNull()) &
+    (col("open") > 0) &
+    (col("high") > 0) &
+    (col("low") > 0) &
+    (col("close") > 0) &
+    (col("volume") >= 0)
+)
+
+#invalid_df = df.subtract(valid_df) this may create issues use the below one
+invalid_df = df.filter(
+    (col("symbol").isNull()) |
+    (col("date").isNull()) |
+    (col("open") <= 0) |
+    (col("high") <= 0) |
+    (col("low") <= 0) |
+    (col("close") <= 0) |
+    (col("volume") < 0)
+)
+
+print(f"Total Records: {df.count()}")
+print(f"Valid Records: {valid_df.count()}")
+print(f"Invalid Records: {invalid_df.count()}")
+
 # Stop Spark
 spark.stop()
