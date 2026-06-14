@@ -89,12 +89,6 @@ df = df.select(
 df.printSchema()
 
 
-df.write \
-    .mode("overwrite") \
-    .partitionBy("year", "month") \
-    .parquet("data/silver/stock_prices")
-
-
 before_dedup = df.count()
 
 # Deduplication
@@ -135,6 +129,18 @@ invalid_df = df.filter(
 print(f"Total Records: {df.count()}")
 print(f"Valid Records: {valid_df.count()}")
 print(f"Invalid Records: {invalid_df.count()}")
+
+
+valid_df.write \
+    .mode("overwrite") \
+    .partitionBy("year", "month") \
+    .parquet("data/silver/stock_prices")
+
+
+# Write Rejected
+invalid_df.write \
+    .mode("overwrite") \
+    .parquet("data/rejected/stock_prices")
 
 # Stop Spark
 spark.stop()
