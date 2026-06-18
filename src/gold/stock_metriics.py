@@ -19,7 +19,8 @@ df.show(5)
 from pyspark.sql.window import Window
 from pyspark.sql.functions import (
     lag,
-    col
+    col,
+    avg
 )
 
 # Define Window
@@ -61,6 +62,29 @@ df.select(
 ).show(10, truncate=False)
 
 
+# Moving avg of 7 days
+moving_avg_window = (
+    Window
+    .partitionBy("symbol")
+    .orderBy("date")
+    .rowsBetween(-6, 0)
+)
+
+df = df.withColumn(
+    "moving_avg_7d",
+    avg("close").over(moving_avg_window)
+)
+
+df.select(
+    "symbol",
+    "date",
+    "close",
+    "previous_close",
+    "daily_return_pct",
+    "moving_avg_7d"
+).show(20, truncate=False)
+
+
 # Write Gold Data
 df.write \
     .mode("overwrite") \
@@ -70,6 +94,6 @@ df = spark.read.parquet(
     "data/gold/stock_metrics"
 )
 
-df.show(5)
+df.show(10)
 
 spark.stop()
