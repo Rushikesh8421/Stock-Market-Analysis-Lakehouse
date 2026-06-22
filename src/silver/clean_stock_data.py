@@ -22,6 +22,10 @@ for bronze_file in bronze_files:
     with open(bronze_file, "r") as f:
         data = json.load(f)
 
+    if ("Meta Data" not in data or "Time Series (Daily)" not in data):
+        print(f"Skipping invalid file: {bronze_file}")
+        continue
+
     symbol = data["Meta Data"]["2. Symbol"]
 
     daily_data = data["Time Series (Daily)"]
