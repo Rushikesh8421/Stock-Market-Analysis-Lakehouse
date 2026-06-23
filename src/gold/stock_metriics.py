@@ -84,6 +84,56 @@ df.select(
     "moving_avg_7d"
 ).show(20, truncate=False)
 
+# moving_avg_30d
+moving_avg_30d_window = (
+    Window
+    .partitionBy("symbol")
+    .orderBy("date")
+    .rowsBetween(-29, 0)
+)
+
+from pyspark.sql.functions import avg
+
+df = df.withColumn(
+    "moving_avg_30d",
+    avg("close").over(moving_avg_30d_window)
+)
+
+df.select(
+    "symbol",
+    "date",
+    "close",
+    "previous_close",
+    "daily_return_pct",
+    "moving_avg_7d",
+    "moving_avg_30d"
+).show(20, truncate=False)
+
+# rolling_avg_volume_7d 
+# What is the average trading activity over the last 7 trading days?
+volume_window = (
+    Window
+    .partitionBy("symbol")
+    .orderBy("date")
+    .rowsBetween(-6, 0)
+)
+
+df = df.withColumn(
+    "rolling_avg_volume_7d",
+    avg("volume").over(volume_window)
+)
+
+df.select(
+    "symbol",
+    "date",
+    "close",
+    "previous_close",
+    "daily_return_pct",
+    "moving_avg_7d",
+    "moving_avg_30d",
+    "rolling_avg_volume_7d"
+).show(20, truncate=False)
+
 
 # Write Gold Data
 df.write \
